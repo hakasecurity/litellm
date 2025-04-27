@@ -113,21 +113,34 @@ class AimGuardrail(CustomGuardrail):
             litellm_call_id=call_id,
         )
         response = await self.async_handler.post(
-            f"{self.api_base}/detect/openai",
+            f"{self.api_base}/detect/openai/v2",
             headers=headers,
             json={"messages": data.get("messages", [])},
         )
         response.raise_for_status()
         res = response.json()
-        detected = res["detected"]
-        verbose_proxy_logger.info(
-            "Aim: detected: {detected}, enabled policies: {policies}".format(
-                detected=detected,
-                policies=list(res["details"].keys()),
-            ),
-        )
-        if detected:
-            raise HTTPException(status_code=400, detail=res["detection_message"])
+        required_action = res["required_action"]["prompt_policy_action"]
+        match required_action:
+            case "monitor_action":
+                verbose_proxy_logger.info("Aim: monitor action")
+            case "block_action":
+                analysis_result = res["analysis_result"]
+                detected = analysis_result["detected"]
+                verbose_proxy_logger.info(
+                    "Aim: detected: {detected}, enabled policies: {policies}".format(
+                        detected=detected,
+                        policies=list(analysis_result["details"].keys()),
+                    ),
+                )
+                if detected:
+                    raise HTTPException(status_code=400, detail=analysis_result["detection_message"])
+            case "anonymize_action":
+                verbose_proxy_logger.info("Aim: anonymize action")
+            case "engage_action":
+                verbose_proxy_logger.info("Aim: engage action")
+            case _:
+                verbose_proxy_logger.error("Aim: unknown action")
+
 
     async def call_aim_guardrail_on_output(
         self, request_data: dict, output: str, hook: str, key_alias: Optional[str]
