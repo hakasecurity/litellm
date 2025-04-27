@@ -119,21 +119,15 @@ class AimGuardrail(CustomGuardrail):
         )
         response.raise_for_status()
         res = response.json()
-        required_action = res["required_action"]["prompt_policy_action"]
+        required_action = res.get("required_action") and res["required_action"].get("prompt_policy_action", None)
+        if required_action is None:
+            verbose_proxy_logger.warning("Aim: No required action specified")
+            return
         match required_action:
             case "monitor_action":
                 verbose_proxy_logger.info("Aim: monitor action")
             case "block_action":
-                analysis_result = res["analysis_result"]
-                detected = analysis_result["detected"]
-                verbose_proxy_logger.info(
-                    "Aim: detected: {detected}, enabled policies: {policies}".format(
-                        detected=detected,
-                        policies=list(analysis_result["details"].keys()),
-                    ),
-                )
-                if detected:
-                    raise HTTPException(status_code=400, detail=analysis_result["detection_message"])
+                self._handle_block_action(res["analysis_result"])
             case "anonymize_action":
                 verbose_proxy_logger.info("Aim: anonymize action")
             case "engage_action":
@@ -141,6 +135,16 @@ class AimGuardrail(CustomGuardrail):
             case _:
                 verbose_proxy_logger.error("Aim: unknown action")
 
+    def _handle_block_action(self, analysis_result: Any):
+        detected = analysis_result["detected"]
+        verbose_proxy_logger.info(
+            "Aim: detected: {detected}, enabled policies: {policies}".format(
+                detected=detected,
+                policies=list(analysis_result["details"].keys()),
+            ),
+        )
+        if detected:
+            raise HTTPException(status_code=400, detail=analysis_result["detection_message"])
 
     async def call_aim_guardrail_on_output(
         self, request_data: dict, output: str, hook: str, key_alias: Optional[str]
@@ -150,7 +154,7 @@ class AimGuardrail(CustomGuardrail):
         )
         call_id = request_data.get("litellm_call_id")
         response = await self.async_handler.post(
-            f"{self.api_base}/detect/output",
+            f"{self.api_base}/detect/output/v2",
             headers=self._build_aim_headers(
                 hook=hook,
                 key_alias=key_alias,
@@ -161,15 +165,34 @@ class AimGuardrail(CustomGuardrail):
         )
         response.raise_for_status()
         res = response.json()
-        detected = res["detected"]
+        required_action = res.get("required_action") and res["required_action"].get("prompt_policy_action", None)
+        if required_action is None:
+            verbose_proxy_logger.warning("Aim: No required action specified")
+            return
+        match required_action:
+            case "monitor_action":
+                verbose_proxy_logger.info("Aim: monitor action")
+            case "block_action":
+                return self._handle_block_action_on_output(res["analysis_result"])
+            case "anonymize_action":
+                verbose_proxy_logger.info("Aim: anonymize action")
+            case "engage_action":
+                verbose_proxy_logger.info("Aim: engage action")
+            case _:
+                verbose_proxy_logger.error("Aim: unknown action")
+        return None
+
+    def _handle_block_action_on_output(self, analysis_result: Any):
+        analysis_result = analysis_result
+        detected = analysis_result["detected"]
         verbose_proxy_logger.info(
             "Aim: detected: {detected}, enabled policies: {policies}".format(
                 detected=detected,
-                policies=list(res["details"].keys()),
+                policies=list(analysis_result["details"].keys()),
             ),
         )
         if detected:
-            return res["detection_message"]
+            return analysis_result["detection_message"]
         return None
 
     def _build_aim_headers(
