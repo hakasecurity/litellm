@@ -94,7 +94,7 @@ class AimGuardrail(CustomGuardrail):
             "responses",
         ],
     ) -> Union[Exception, str, dict, None]:
-        verbose_proxy_logger.debug("Inside AIM Moderation Hook, dummy")
+        verbose_proxy_logger.debug("Inside AIM Moderation Hook")
 
         await self.call_aim_guardrail(
             data, hook="moderation", key_alias=user_api_key_dict.key_alias
