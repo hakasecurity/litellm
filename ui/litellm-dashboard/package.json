@@ -57,8 +57,8 @@
     "@types/react-syntax-highlighter": "^15.5.11",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^5.0.4",
-    "@vitest/coverage-v8": "^3.2.4",
-    "@vitest/ui": "^3.2.4",
+    "@vitest/coverage-v8": "^4.1.8",
+    "@vitest/ui": "^4.1.8",
     "autoprefixer": "^10.4.17",
     "eslint": "^8",
     "eslint-config-next": "14.2.32",
@@ -70,7 +70,7 @@
     "tailwindcss": "^3.4.1",
     "typescript": "5.3.3",
     "vite": "^7.1.6",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.8"
   },
   "overrides": {
     "prismjs": ">=1.30.0",
